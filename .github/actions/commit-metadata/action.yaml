@@ -1,0 +1,186 @@
+name: Transactionally Commit Packages to Metadata File
+description: Transactionally add packages build info to metadata JSON file.
+inputs:
+  azure-blob-storage-connection-string:
+    description: The connection string of Azure Blob Storage.
+    required: true
+  azure-blob-storage-container:
+    description: The container of Azure Blob Storage.
+    required: true
+  packages-directory:
+    description: The directory of package files to commit.
+    required: true
+  target-name:
+    description: The AUR target name we attempted to build.
+    required: true
+  target-aur-ref:
+    description: The AUR target git ref we attempted to build.
+    required: true
+  build-status:
+    description: The status (success / failure) of the build attempt.
+    required: true
+  metadata-file-path:
+    description: The metadata JSON file path in Azure Blob Storage.
+    required: true
+runs:
+  using: composite
+  steps:
+    - shell: bash
+      run: |
+        echo "::group::Install moreutils"
+        sudo apt-get update
+        sudo apt-get -y install moreutils
+        echo "::endgroup::"
+
+        CURRENT_TIME="$(date +%s)"
+
+        TEMP_NEW_PACKAGES_JSON_FILE="$(mktemp -t new-packages-XXXXXXXX.json)"
+        echo '{}' > "$TEMP_NEW_PACKAGES_JSON_FILE"
+
+        TEMP_NEW_PACKAGE_ITEM_JSON_FILE="$(mktemp -t new-package-item-XXXXXXXX.json)"
+        function set_package_info () {
+          jq -c '.'"$1"' = ($value | to'"$2"')' --arg value "$3" "$TEMP_NEW_PACKAGE_ITEM_JSON_FILE" | sponge "$TEMP_NEW_PACKAGE_ITEM_JSON_FILE"
+        }
+        function add_package_to_temp_metadata () {
+          jq -c '.[0][$itemName] = .[1] | .[0]' --arg itemName "$1" -s "$TEMP_NEW_PACKAGES_JSON_FILE" "$TEMP_NEW_PACKAGE_ITEM_JSON_FILE" | sponge "$TEMP_NEW_PACKAGES_JSON_FILE"
+        }
+        if [[ "$BUILD_STATUS" == "success" ]]; then
+            echo "Extracting packages info from package files since build succeed."
+            for PACKAGE_PATH in "$PACKAGES_DIRECTORY"/*; do
+                PACKAGE_FILE="$(basename "$PACKAGE_PATH")"
+                echo "::group::Process package file: $PACKAGE_FILE"
+
+                TEMP_EXTRACT_DIRECTORY="$(mktemp -d -t extract-package-XXXXXXXX)"
+                tar -C "$TEMP_EXTRACT_DIRECTORY" -xf "$PACKAGE_PATH" .PKGINFO
+
+                PACKAGE_NAME="$(sed -n 's/^pkgname\s*=\s*\(.\+\)$/\1/p' "$TEMP_EXTRACT_DIRECTORY/.PKGINFO")"
+                PACKAGE_VERSION="$(sed -n 's/^pkgver\s*=\s*\(.\+\)$/\1/p' "$TEMP_EXTRACT_DIRECTORY/.PKGINFO")"
+                PACKAGE_DESCRIPTION="$(sed -n 's/^pkgdesc\s*=\s*\(.\+\)$/\1/p' "$TEMP_EXTRACT_DIRECTORY/.PKGINFO")"
+                echo "Package name: $PACKAGE_NAME"
+                echo "Package version: $PACKAGE_VERSION"
+                echo "Package description: $PACKAGE_DESCRIPTION"
+
+                echo '{}' > "$TEMP_NEW_PACKAGE_ITEM_JSON_FILE"
+                set_package_info status               string "success"
+                set_package_info description          string "$PACKAGE_DESCRIPTION"
+                set_package_info target               string "$TARGET_NAME"
+                set_package_info targetRef            string "$TARGET_AUR_REF"
+                set_package_info attempt.version      string "$PACKAGE_VERSION"
+                set_package_info attempt.date         number "$CURRENT_TIME"
+                set_package_info available.version    string "$PACKAGE_VERSION"
+                set_package_info available.filename   string "$PACKAGE_FILE"
+                set_package_info available.date       number "$CURRENT_TIME"
+                set_package_info available.size       number "$(stat --printf='%s' "$PACKAGE_PATH")"
+
+                rm -rf "$TEMP_EXTRACT_DIRECTORY"
+
+                add_package_to_temp_metadata "$PACKAGE_NAME"
+
+                echo "::endgroup::"
+            done
+        else
+            echo "Fetching packages info from AUR since build failed."
+
+            TEMP_PKGBUILD_DIRECTORY="$(mktemp -d -t extract-pkgbuild-XXXXXXXX)"
+
+            echo "::group::Fetch PKGBUILD from AUR"
+
+            PACKAGE_URL="https://aur.archlinux.org/cgit/aur.git/snapshot/$TARGET_AUR_REF.tar.gz"
+            echo "Downloading AUR repo: $PACKAGE_URL"
+            curl "$PACKAGE_URL" | tar -C "$TEMP_PKGBUILD_DIRECTORY" -xzvf -
+            PKGBUILD_FILE="$(echo "$TEMP_PKGBUILD_DIRECTORY"/*/PKGBUILD)"
+            echo "PKGBUILD file: $PKGBUILD_FILE"
+
+            echo "::endgroup::"
+
+            PACKAGE_NAMES="$(source "$PKGBUILD_FILE" >& /dev/null && echo "${pkgname[*]}")"
+            PACKAGE_DESCRIPTION="$(source "$PKGBUILD_FILE" >& /dev/null && echo "$pkgdesc")"
+            PACKAGE_VERSION="$(source "$PKGBUILD_FILE" >& /dev/null && echo "$pkgver-$pkgrel")"
+
+            echo '{}' > "$TEMP_NEW_PACKAGE_ITEM_JSON_FILE"
+            for PACKAGE_NAME in $PACKAGE_NAMES; do
+                echo "::group::Process package: $PACKAGE_NAME"
+
+                echo "Package name: $PACKAGE_NAME"
+                echo "Package version: $PACKAGE_VERSION"
+                echo "Package description: $PACKAGE_DESCRIPTION"
+
+                echo '{}' > "$TEMP_NEW_PACKAGE_ITEM_JSON_FILE"
+                set_package_info status               string "failure"
+                set_package_info description          string "$PACKAGE_DESCRIPTION"
+                set_package_info target               string "$TARGET_NAME"
+                set_package_info targetRef            string "$TARGET_AUR_REF"
+                set_package_info attempt.version      string "$PACKAGE_VERSION"
+                set_package_info attempt.date         number "$CURRENT_TIME"
+
+                add_package_to_temp_metadata "$PACKAGE_NAME"
+
+                echo "::endgroup::"
+            done
+
+            rm -rf "$TEMP_PKGBUILD_DIRECTORY"
+        fi
+        rm "$TEMP_NEW_PACKAGE_ITEM_JSON_FILE"
+
+        echo "::group::Show updated package items"
+        jq . "$TEMP_NEW_PACKAGES_JSON_FILE"
+        echo "::endgroup::"
+
+        TRIES=0
+        while true; do
+            ((TRIES=TRIES+1))
+
+            echo "::group::Merge changes to metadata file: ${TRIES}-th try"
+
+            TEMP_METADATA_FILE="$(mktemp -t metadata-XXXXXXXX.json)"
+
+            echo "Downloading old metadata file"
+            EXISTS="$(az storage blob exists --connection-string "$AZURE_BLOB_STORAGE_CONNECTION_STRING" --container-name "$AZURE_BLOB_STORAGE_CONTAINER" --name "$METADATA_FILE_PATH" | jq -r .exists)"
+            UPLOAD_CONDITION=()
+            if [[ "$EXISTS" == "true" ]]; then
+                ETAG="$(az storage blob download --connection-string "$AZURE_BLOB_STORAGE_CONNECTION_STRING" --container-name "$AZURE_BLOB_STORAGE_CONTAINER" --file "$TEMP_METADATA_FILE" --name "$METADATA_FILE_PATH" | jq -r .properties.etag)"
+                if [[ "$ETAG" == "" ]]; then
+                    echo "Failed to download old metadata file!"
+                    exit 1
+                fi
+                UPLOAD_CONDITION+=('--if-match')
+                UPLOAD_CONDITION+=("$ETAG")
+            else
+                echo '{}' > "$TEMP_METADATA_FILE"
+                UPLOAD_CONDITION+=('--if-none-match')
+                UPLOAD_CONDITION+=('*')
+            fi
+
+            echo "Merge changes to metadata file locally"
+            jq -c '.[0] * .[1]' -s "$TEMP_METADATA_FILE" "$TEMP_NEW_PACKAGES_JSON_FILE" | sponge "$TEMP_METADATA_FILE"
+
+            echo "Try upload new metadata file"
+            UPLOAD_SUCCESS="false"
+            if ! UPLOAD_OUTPUT="$(az storage blob upload --connection-string "$AZURE_BLOB_STORAGE_CONNECTION_STRING" --container-name "$AZURE_BLOB_STORAGE_CONTAINER" --file "$TEMP_METADATA_FILE" --name "$METADATA_FILE_PATH" --content-cache "no-cache" "${UPLOAD_CONDITION[@]}" 2>&1)"; then
+                if ! echo "$UPLOAD_OUTPUT" | grep 'ConditionNotMet\|BlobAlreadyExists'; then
+                    echo "Unknown error when uploading new metadata file: $UPLOAD_OUTPUT"
+                    exit 1
+                fi
+            else
+                echo "Uploaded new metadata file successfully!"
+                UPLOAD_SUCCESS="true"
+            fi
+
+            rm "$TEMP_METADATA_FILE"
+
+            echo "::endgroup::"
+
+            if [[ "$UPLOAD_SUCCESS" == "true" ]]; then
+                break
+            fi
+        done
+
+        rm "$TEMP_NEW_PACKAGES_JSON_FILE"
+      env:
+        AZURE_BLOB_STORAGE_CONNECTION_STRING: ${{ inputs.azure-blob-storage-connection-string }}
+        AZURE_BLOB_STORAGE_CONTAINER: ${{ inputs.azure-blob-storage-container }}
+        PACKAGES_DIRECTORY: ${{ inputs.packages-directory }}
+        TARGET_NAME: ${{ inputs.target-name }}
+        TARGET_AUR_REF: ${{ inputs.target-aur-ref }}
+        BUILD_STATUS: ${{ inputs.build-status }}
+        METADATA_FILE_PATH: ${{ inputs.metadata-file-path }}

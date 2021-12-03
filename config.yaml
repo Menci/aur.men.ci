@@ -1,0 +1,25 @@
+definitions:
+  os:
+    archlinux:
+      name: Arch Linux
+      docker-image: menci/aur-builder-archlinux:latest
+    manjaro:
+      name: Manjaro
+      docker-image: menci/aur-builder-manjaro:latest
+  arch:
+    - x86_64
+    - aarch64
+baseOptions:
+  x86_64: true
+  aarch64: false
+  archlinux: true
+  manjaro: true
+packages:
+  azure-cli: { aarch64: true }
+  besttrace:
+  checkra1n-cli:
+  fcitx-sogoupinyin: { ref: aur-74a52e0854ebeb828abbaf529abb00f23066cc28 }
+  lemon-lime:
+  ossutil-bin:
+  powershell-bin:
+  yay-bin: { manjaro: false, aarch64: true }

@@ -1,0 +1,227 @@
+$color-primary: #f546ae;
+$color-text: #606c76;
+$color-error: #c30000;
+
+$color-archlinux: #1793d1;
+$color-manjaro: #34be5b;
+
+[data-os=archlinux] { color: $color-archlinux; }
+[data-os=manjaro]   { color: $color-manjaro;   }
+
+.container {
+  max-width: 800px;
+  margin: 0 auto;
+  padding: 0;
+}
+
+a {
+  color: $color-primary;
+
+  &:hover {
+    color: $color-primary;
+
+    &, * {
+      text-decoration: underline;
+    }
+  }
+}
+
+b {
+  font-weight: 400;
+}
+
+.os-buttons {
+  display: flex;
+  justify-content: center;
+
+  > .button {
+    @mixin set-color($color) {
+      background-color: $color;
+      border-color: $color;
+      color: white;
+
+      &.button-outline {
+        color: $color;
+        background-color: transparent;
+      }
+    }
+
+    width: 150px;
+    padding-left: 0;
+    padding-right: 0;
+    transition: all 200ms ease-in-out;
+
+    @mixin os-button($color) {
+      @include set-color($color);
+      &:hover  { @include set-color(lighten($color, 10%)); }
+      &:active { @include set-color(darken($color, 10%)); }
+    }
+
+    &[data-os=archlinux] { @include os-button($color-archlinux) }
+    &[data-os=manjaro]   { @include os-button($color-manjaro)   }
+
+    
+    &:not(:first-child) {
+      border-top-left-radius: 0;
+      border-bottom-left-radius: 0;
+    }
+    
+    &:not(:last-child) {
+      border-top-right-radius: 0;
+      border-bottom-right-radius: 0;
+    }
+
+    .icon {
+      font-size: 18px;
+      margin-right: 7px;
+      vertical-align: middle;
+    }
+  }
+}
+
+.pacman-conf {
+  margin-top: 0;
+  border-left-color: $color-primary;
+  position: relative;
+
+  [data-os] {
+    font-weight: 500;
+  }
+
+  > .copy {
+    position: absolute;
+    right: 10px;
+    top: 10px;
+    margin: 0;
+    padding: 0;
+    user-select: none;
+    cursor: pointer;
+    opacity: 0.8;
+
+    &:hover  { opacity: 0.5; }
+    &:active { opacity: 1.0; }
+  }
+}
+
+code {
+  font-family: "Fira Code", monospace;
+}
+
+.divider {
+  border-top: 1px solid $color-text;
+  opacity: 0.15;
+  margin-top: -20px;
+  margin-bottom: 37px;
+}
+
+input {
+  font-weight: 300;
+  margin-bottom: 14px;
+  
+  &::placeholder {
+    opacity: 0.5;
+  }
+
+  &:focus {
+    border-color: $color-primary !important;
+  }
+}
+
+table.main-table {
+  padding: 0 !important;
+  white-space: nowrap;
+
+  > * > tr > {
+    th, td {
+      padding: 0.5rem;
+  
+      &:last-child {
+        padding-right: 0.5em !important;
+      }
+    }
+  }
+
+  .expand-icon {
+    width: 0;
+
+    &:not(th)::before {
+      $size: 5px;
+  
+      content: ' ';
+      width: 0;
+      height: 0;
+      margin-left: 14px;
+      margin-right: 14px;
+      border-top: $size solid transparent;
+      border-bottom: $size solid transparent;
+      border-left: $size solid #aaa;
+      display: inline-block;
+    }
+  }
+
+  tr[data-expanded=true] {
+    .expand-icon::before {
+      transform: rotate(90deg);
+    }
+
+    > td {
+      border-bottom: none;
+    }
+  }
+
+  .second-tr > td {
+    padding-top: 0;
+
+    .description {
+      font-size: 0.85em;
+    }
+  }
+
+  .column-target, .column-status, .column-date {
+    white-space: nowrap;
+  }
+
+  .column-target {
+    font-weight: 400;
+    
+    &:not(th) {
+      opacity: 0.7;
+    }
+  }
+
+  .column-status {
+    width: 100%;
+    text-align: center;
+  }
+
+  .column-date {
+    text-align: center;
+  }
+}
+
+tr[data-error] {
+  color: $color-error;
+}
+
+.sub-table {
+  margin-top: 7px;
+  margin-bottom: 7px;
+
+  th, td {
+    padding-top: 0.3rem;
+    padding-bottom: 0.3rem;
+  }
+
+  tr:last-child td {
+    border-bottom: none;
+  }
+
+  .sub-table-column-arch, .sub-table-column-name, .sub-table-column-version, .sub-table-column-attempt-date, .sub-table-column-download {
+    text-align: center;
+  }
+}
+
+.last-build-attempt {
+  margin-top: 14px;
+  margin-bottom: 28px;
+}

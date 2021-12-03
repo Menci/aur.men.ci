@@ -1,0 +1,27 @@
+diff --git a/node_modules/vite-plugin-singlefile/dist/index.js b/node_modules/vite-plugin-singlefile/dist/index.js
+index 32bfd31..8cc80e9 100644
+--- a/node_modules/vite-plugin-singlefile/dist/index.js
++++ b/node_modules/vite-plugin-singlefile/dist/index.js
+@@ -12,17 +12,17 @@ function viteSingleFile() {
+                     return html;
+                 // Get the bundle
+                 let extraCode = "";
+-                for (const [, value] of Object.entries(ctx.bundle)) {
++                for (const [key, value] of Object.entries(ctx.bundle)) {
+                     const o = value;
+                     const a = value;
+                     if (o.code) {
+-                        const reScript = new RegExp(`<script type="module"[^>]*?src="/${value.fileName}"[^>]*?></script>`);
+-                        const code = `<script type="module">\n//${o.fileName}\n${o.code}\n</script>`;
++                        const reScript = new RegExp(`<script type="module"[^>]*?src="${value.fileName}"[^>]*?></script>`);
++                        const code = `<script type="module">${o.code}</script>`;
+                         html = html.replace(reScript, (_) => code);
+                     }
+                     else if (value.fileName.endsWith(".css")) {
+-                        const reCSS = new RegExp(`<link rel="stylesheet"[^>]*?href="/${value.fileName}"[^>]*?>`);
+-                        const code = `<!-- ${a.fileName} --><style type="text/css">\n${a.source}\n</style>`;
++                        const reCSS = new RegExp(`<link rel="stylesheet"[^>]*?href="${value.fileName}"[^>]*?>`);
++                        const code = `<style type="text/css">${a.source}</style>`;
+                         html = html.replace(reCSS, (_) => code);
+                     }
+                     else {

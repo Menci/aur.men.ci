@@ -1,0 +1,36 @@
+name: Build Indexer Page
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - indexer/**
+
+env:
+  AZURE_BLOB_STORAGE_CONTAINER: aur
+
+jobs:
+  build:
+    name: Build and Deploy
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: indexer
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+      - name: Set up Node
+        uses: actions/setup-node@v2-beta
+        with:
+          node-version: 16.x
+      - name: Install dependencies
+        run: yarn
+      - name: Build
+        run: yarn build
+      - name: Deploy
+        uses: ./.github/actions/upload-file
+        with:
+          azure-blob-storage-connection-string: ${{ secrets.AZURE_BLOB_STORAGE_CONNECTION_STRING }}
+          azure-blob-storage-container: ${{ env.AZURE_BLOB_STORAGE_CONTAINER }}
+          target-file: index.html
+          file: indexer/dist/index.html

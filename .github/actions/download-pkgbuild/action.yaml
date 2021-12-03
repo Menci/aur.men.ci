@@ -1,0 +1,33 @@
+name: Download PKGBUILD from AUR
+description: Download PKGBUILD and other required files for a target from AUR
+inputs:
+  target-aur-ref:
+    description: The AUR git ref to download.
+    required: true
+  extract-directory:
+    description: The directory to extract the downloaded archive to. Must be non-exist.
+    required: true
+outputs:
+  pkgbuild-directory:
+    description: The directory containing downloaded and extracted PKGBUILD and other files.
+    value: ${{ steps.download.outputs.pkgbuild-directory }}
+runs:
+  using: composite
+  steps:
+    - id: download
+      shell: bash
+      run: |
+        if [[ -e "$EXTRACT_DIRECTORY" ]]; then
+            echo "Specfied PKGBUILD extract directory already exists!"
+            exit 1
+        fi
+
+        mkdir -p "$EXTRACT_DIRECTORY"
+        PACKAGE_URL="https://aur.archlinux.org/cgit/aur.git/snapshot/$TARGET_AUR_REF.tar.gz"
+        echo "Downloading AUR repo: $PACKAGE_URL"
+        curl "$PACKAGE_URL" | tar -C "$EXTRACT_DIRECTORY" -xzv
+        PKGBUILD_DIRECTORY="$(echo "$EXTRACT_DIRECTORY"/*)"
+        echo "::set-output name=pkgbuild-directory::$PKGBUILD_DIRECTORY"
+      env:
+        TARGET_AUR_REF: ${{ inputs.target-aur-ref }}
+        EXTRACT_DIRECTORY: ${{ inputs.extract-directory }}

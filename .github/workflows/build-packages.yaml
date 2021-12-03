@@ -1,0 +1,112 @@
+name: Build Packages
+
+on:
+  workflow_dispatch:
+    inputs:
+      force-rebuild-all:
+        description: 'Force rebuild ALL'
+        required: false
+        default: 'false'
+  schedule:
+    - cron: '0 9 * * *'
+
+env:
+  REPO_ROOT: https://aur.men.ci
+  REPO_NAME: menci
+  PACKAGER: Menci <huanghaorui301@gmail.com>
+  AZURE_BLOB_STORAGE_CONTAINER: aur
+  CONFIG_FILE: config.yaml
+
+  PKGBUILD_EXTRACT_DIRECTORY: /tmp/pkgbuild
+  PACKAGES_DIRECTORY: /tmp/packages
+  BUILD_LOG: /tmp/build.log
+
+jobs:
+  parse-config:
+    runs-on: ubuntu-latest
+    name: Parse Config
+    outputs:
+      config: ${{ steps.parse-config.outputs.config }}
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v2
+    - name: Parse Config
+      id: parse-config
+      uses: ./.github/actions/parse-config
+      with:
+        config-file: ${{ env.CONFIG_FILE }}
+  upload-config:
+    needs: parse-config
+    runs-on: ubuntu-latest
+    name: Upload Config
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v2
+    - name: Upload Config
+      uses: ./.github/actions/upload-file
+      with:
+        azure-blob-storage-connection-string: ${{ secrets.AZURE_BLOB_STORAGE_CONNECTION_STRING }}
+        azure-blob-storage-container: ${{ env.AZURE_BLOB_STORAGE_CONTAINER }}
+        target-file: config.json
+        file-content: ${{ needs.parse-config.outputs.config }}
+  build:
+    needs: parse-config
+    strategy:
+      fail-fast: false
+      matrix:
+        include: ${{ fromJSON(needs.parse-config.outputs.config) }}
+    runs-on: ubuntu-latest
+    name: ${{ matrix.arch }} ${{ matrix.os.name }} ${{ matrix.target }}
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v2
+    - name: Set up QEMU
+      if: ${{ matrix.arch != 'x86_64' }}
+      uses: docker/setup-qemu-action@v1
+    - name: Download PKGBUILD
+      id: download-pkgbuild
+      uses: ./.github/actions/download-pkgbuild
+      with:
+        target-aur-ref: ${{ matrix.target-ref }}
+        extract-directory: ${{ env.PKGBUILD_EXTRACT_DIRECTORY }}
+    - name: Build
+      id: build
+      uses: Menci/build-archlinux-package@main
+      with:
+        docker-image: ${{ matrix.os.docker-image }}
+        platform: ${{ matrix.arch == 'x86_64' && 'linux/amd64' || 'linux/arm64' }}
+        pkgbuild-directory: ${{ steps.download-pkgbuild.outputs.pkgbuild-directory }}
+        repo-url: ${{ env.REPO_ROOT }}/${{ matrix.os.id }}/${{ matrix.arch }}
+        force-rebuild: ${{ github.event.inputs.force-rebuild-all }}
+        target-directory: ${{ env.PACKAGES_DIRECTORY }}
+        packager: ${{ env.PACKAGER }}
+        build-log-file: ${{ env.BUILD_LOG }}
+      continue-on-error: true
+    - name: Upload build error log
+      if: ${{ steps.build.outcome == 'failure' }}
+      uses: ./.github/actions/upload-file
+      with:
+        azure-blob-storage-connection-string: ${{ secrets.AZURE_BLOB_STORAGE_CONNECTION_STRING }}
+        azure-blob-storage-container: ${{ env.AZURE_BLOB_STORAGE_CONTAINER }}
+        target-file: ${{ matrix.os.id }}/${{ matrix.arch }}/logs/${{ matrix.target }}.log
+        file: ${{ env.BUILD_LOG }}
+    - name: Upload and commit database
+      if: ${{ steps.build.outcome == 'success' && steps.build.outputs.skipped == 'false' }}
+      uses: ./.github/actions/upload-and-commit-database
+      with:
+        azure-blob-storage-connection-string: ${{ secrets.AZURE_BLOB_STORAGE_CONNECTION_STRING }}
+        azure-blob-storage-container: ${{ env.AZURE_BLOB_STORAGE_CONTAINER }}
+        packages-directory: ${{ env.PACKAGES_DIRECTORY }}
+        target-path: ${{ matrix.os.id }}/${{ matrix.arch }}
+        repo-name: ${{ env.REPO_NAME }}
+    - name: Commit metadata
+      if: ${{ steps.build.outcome == 'failure' || (steps.build.outcome == 'success' && steps.build.outputs.skipped == 'false') }}
+      uses: ./.github/actions/commit-metadata
+      with:
+        azure-blob-storage-connection-string: ${{ secrets.AZURE_BLOB_STORAGE_CONNECTION_STRING }}
+        azure-blob-storage-container: ${{ env.AZURE_BLOB_STORAGE_CONTAINER }}
+        packages-directory: ${{ env.PACKAGES_DIRECTORY }}
+        target-name: ${{ matrix.target }}
+        target-aur-ref: ${{ matrix.target-ref }}
+        build-status: ${{ steps.build.outcome }}
+        metadata-file-path: ${{ matrix.os.id }}/${{ matrix.arch }}/metadata.json

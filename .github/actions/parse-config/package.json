@@ -1,0 +1,11 @@
+{
+  "name": "parse-config",
+  "version": "1.0.0",
+  "main": "index.js",
+  "author": "Menci",
+  "license": "MIT",
+  "private": true,
+  "dependencies": {
+    "js-yaml": "^4.1.0"
+  }
+}

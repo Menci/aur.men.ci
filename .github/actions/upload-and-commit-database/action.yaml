@@ -1,0 +1,144 @@
+name: Transactionally Commit Packages to Repo
+description: Upload package file and transactionally add package to repo database
+inputs:
+  azure-blob-storage-connection-string:
+    description: The connection string of Azure Blob Storage.
+    required: true
+  azure-blob-storage-container:
+    description: The container of Azure Blob Storage.
+    required: true
+  packages-directory:
+    description: The directory of package files to commit.
+    required: true
+  target-path:
+    description: The target path (aka. blob file name's prefix, without trailing '/') of package and repo database files in Azure Blob Storage.
+    required: true
+  repo-name:
+    description: The repo name (aka. file name without extension of repo database file <repo-name>.db).
+    required: true
+runs:
+  using: composite
+  steps:
+    - shell: bash
+      run: |
+        echo "::group::Install pcregrep"
+        sudo apt-get update
+        sudo apt-get -y install pcregrep
+        echo "::endgroup::"
+
+        CACHE_CONTROL_PACKAGE_FILE="public, max-age=604800"
+        CACHE_CONTROL_DATABASE_FILE="no-cache"
+
+        PACKAGE_NAMES=()
+        for PACKAGE_PATH in "$PACKAGES_DIRECTORY"/*; do
+            PACKAGE_FILE="$(basename "$PACKAGE_PATH")"
+            echo "::group::Upload package: $PACKAGE_FILE"
+
+            TEMP_EXTRACT_DIRECTORY="$(mktemp -d -t extract-package-XXXXXXXX)"
+            tar -C "$TEMP_EXTRACT_DIRECTORY" -xf "$PACKAGE_PATH" .PKGINFO
+            PACKAGE_NAME="$(sed -n 's/^pkgname\s*=\s*\(\S\+\)$/\1/p' "$TEMP_EXTRACT_DIRECTORY/.PKGINFO")"
+            PACKAGE_NAMES+=("$PACKAGE_NAME")
+            echo "Package name: $PACKAGE_NAME"
+
+            az storage blob upload --connection-string "$AZURE_BLOB_STORAGE_CONNECTION_STRING" --container-name "$AZURE_BLOB_STORAGE_CONTAINER" --file "$PACKAGE_PATH" --name "$TARGET_PATH/$PACKAGE_FILE" --content-cache "$CACHE_CONTROL_PACKAGE_FILE"
+
+            rm -rf "$TEMP_EXTRACT_DIRECTORY"
+
+            echo "::endgroup::"
+        done
+
+        TRIES=0
+        while true; do
+            ((TRIES=TRIES+1))
+
+            echo "::group::Update repo database: ${TRIES}-th try"
+
+            TEMP_DB_FILE_DIRECTORY="$(mktemp -d -t db-file-XXXXXXXX)"
+            TEMP_DB_FILE="$TEMP_DB_FILE_DIRECTORY/$REPO_NAME.db"
+            TEMP_DB_FILE_DOT_FILES="$TEMP_DB_FILE_DIRECTORY/$REPO_NAME.files"
+
+            echo "Downloading old database file"
+            EXISTS="$(az storage blob exists --connection-string "$AZURE_BLOB_STORAGE_CONNECTION_STRING" --container-name "$AZURE_BLOB_STORAGE_CONTAINER" --name "$TARGET_PATH/$REPO_NAME.db" | jq -r .exists)"
+            UPLOAD_CONDITION=()
+            if [[ "$EXISTS" == "true" ]]; then
+                ETAG="$(az storage blob download --connection-string "$AZURE_BLOB_STORAGE_CONNECTION_STRING" --container-name "$AZURE_BLOB_STORAGE_CONTAINER" --file "$TEMP_DB_FILE" --name "$TARGET_PATH/$REPO_NAME.db" | jq -r .properties.etag)"
+                if [[ "$ETAG" == "" ]]; then
+                    echo "Failed to download old database file!"
+                    exit 1
+                fi
+                UPLOAD_CONDITION+=('--if-match')
+                UPLOAD_CONDITION+=("$ETAG")
+            else
+                tar cvfJ "$TEMP_DB_FILE" --files-from=/dev/null
+                UPLOAD_CONDITION+=('--if-none-match')
+                UPLOAD_CONDITION+=('*')
+            fi
+
+            echo "Finding old package files in old database file"
+            TEMP_DB_EXTRACT_DIRECTORY="$TEMP_DB_FILE_DIRECTORY/extract"
+            mkdir "$TEMP_DB_EXTRACT_DIRECTORY"
+            tar -C "$TEMP_DB_EXTRACT_DIRECTORY" -xvf "$TEMP_DB_FILE"
+            
+            PACKAGE_OLD_FILES=()
+            for PACKAGE_NAME in "${PACKAGE_NAMES[@]}"; do
+                echo "Finding old package file for: $PACKAGE_NAME"
+                PACKAGE_DESC_FILE="$(pcregrep -HM "^%NAME%\n$PACKAGE_NAME\n\n" "$TEMP_DB_EXTRACT_DIRECTORY"/*/desc 2>/dev/null | head -n1 | cut -d':' -f1 || true)"
+                if [[ "$PACKAGE_DESC_FILE" == "" ]]; then
+                    echo "Could't find old package file in repo: $PACKAGE_NAME"
+                    continue
+                fi
+
+                PACKAGE_OLD_FILE="$(pcregrep -A1 -hM "^%FILENAME%\n" "$PACKAGE_DESC_FILE" 2>/dev/null | tail -n 1)"
+                echo "Found old package file: $PACKAGE_OLD_FILE"
+                if [[ -f "$PACKAGES_DIRECTORY/$PACKAGE_OLD_FILE" ]]; then
+                    echo "Warning: package old file name same as new file, skipping: $PACKAGE_OLD_FILE"
+                else
+                    PACKAGE_OLD_FILES+=("$PACKAGE_OLD_FILE")
+                fi
+            done
+
+            rm -rf "$TEMP_DB_EXTRACT_DIRECTORY"
+
+            echo "Adding packages to database file"
+            cp "$TEMP_DB_FILE" "$TEMP_DB_FILE_DOT_FILES.tar.xz"
+            mv "$TEMP_DB_FILE" "$TEMP_DB_FILE.tar.xz"
+            docker run --rm -v "$TEMP_DB_FILE_DIRECTORY":/repo -v "$PACKAGES_DIRECTORY":/packages archlinux:latest bash -c 'repo-add /repo/*.db.tar.xz /packages/*'
+            sudo chown -R $(id -u):$(id -g) "$TEMP_DB_FILE_DIRECTORY"
+            rm "$TEMP_DB_FILE" "$TEMP_DB_FILE.tar.xz" "$TEMP_DB_FILE_DOT_FILES"
+            mv "$TEMP_DB_FILE_DOT_FILES.tar.xz" "$TEMP_DB_FILE"
+
+            echo "Try upload new database file"
+            UPLOAD_SUCCESS="false"
+            if ! UPLOAD_OUTPUT="$(az storage blob upload --connection-string "$AZURE_BLOB_STORAGE_CONNECTION_STRING" --container-name "$AZURE_BLOB_STORAGE_CONTAINER" --file "$TEMP_DB_FILE" --name "$TARGET_PATH/$REPO_NAME.db" --content-cache "$CACHE_CONTROL_DATABASE_FILE" "${UPLOAD_CONDITION[@]}" 2>&1)"; then
+                if ! echo "$UPLOAD_OUTPUT" | grep 'ConditionNotMet\|BlobAlreadyExists'; then
+                    echo "Unknown error when uploading new database file: $UPLOAD_OUTPUT"
+                    exit 1
+                fi
+            else
+                echo "Uploaded new database file successfully!"
+                UPLOAD_SUCCESS="true"
+            fi
+
+            rm -rf "$TEMP_DB_FILE_DIRECTORY"
+
+            echo "::endgroup::"
+
+            if [[ "$UPLOAD_SUCCESS" == "true" ]]; then
+                echo "::group::Delete old package files"
+
+                for PACKAGE_OLD_FILE in "${PACKAGE_OLD_FILES[@]}"; do
+                    echo "Deleteing: $PACKAGE_OLD_FILE"
+                    az storage blob delete --connection-string "$AZURE_BLOB_STORAGE_CONNECTION_STRING" --container-name "$AZURE_BLOB_STORAGE_CONTAINER" --name "$TARGET_PATH/$PACKAGE_OLD_FILE"
+                done
+
+                echo "::endgroup::"
+
+                break
+            fi
+        done
+      env:
+        AZURE_BLOB_STORAGE_CONNECTION_STRING: ${{ inputs.azure-blob-storage-connection-string }}
+        AZURE_BLOB_STORAGE_CONTAINER: ${{ inputs.azure-blob-storage-container }}
+        PACKAGES_DIRECTORY: ${{ inputs.packages-directory }}
+        TARGET_PATH: ${{ inputs.target-path }}
+        REPO_NAME: ${{ inputs.repo-name }}
