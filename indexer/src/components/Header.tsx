@@ -51,7 +51,7 @@ export const Header: Preact.FunctionalComponent = () => {
           </h4>
         </div>
       </header>
-      <section className="container" style="padding: 32px 0; ">
+      <section className="container" style="padding: 32px 16px; ">
         <p>
           This is my personal <a href="https://wiki.archlinux.org/title/pacman">Pacman</a> repository that provides some
           packages from <a href="https://aur.archlinux.org">AUR</a>. To avoid compatibility issues, each package is
