@@ -7,7 +7,7 @@ BUILD_DEPENDENCIES=(
 )
 
 # Patch Manjaro's mirrorlist to avoid HTTP 429
-if cat /etc/os-release | head -n 1 | grep Manjaro > /dev/null; then
+if cat /etc/pacman.conf | grep manjaro > /dev/null; then
     if [[ "$(uname -m)" == "aarch64" ]]; then
         echo 'Server = http://mirrors.gigenet.com/manjaro/arm-stable/$repo/$arch' > /etc/pacman.d/mirrorlist
     else
