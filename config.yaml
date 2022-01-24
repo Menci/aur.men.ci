@@ -23,3 +23,5 @@ packages:
   ossutil-bin:
   powershell-bin:
   yay-bin: { manjaro: false, aarch64: true }
+  overture: { aarch64: true }
+  azure-storage-fuse:
