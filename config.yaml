@@ -16,12 +16,13 @@ baseOptions:
   manjaro: true
 packages:
   azure-cli: { aarch64: true }
+  azure-storage-fuse:
   besttrace:
   checkra1n-cli:
+  curl-http3: { aarch64: true }
   fcitx-sogoupinyin: { ref: aur-74a52e0854ebeb828abbaf529abb00f23066cc28 }
   lemon-lime:
   ossutil-bin:
+  overture: { aarch64: true }
   powershell-bin:
   yay-bin: { manjaro: false, aarch64: true }
-  overture: { aarch64: true }
-  azure-storage-fuse:
