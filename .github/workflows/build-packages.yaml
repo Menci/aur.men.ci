@@ -71,7 +71,7 @@ jobs:
         extract-directory: ${{ env.PKGBUILD_EXTRACT_DIRECTORY }}
     - name: Build
       id: build
-      uses: Menci/build-archlinux-package@main
+      uses: Menci/build-aur-package@main
       with:
         docker-image: ${{ matrix.os.docker-image }}
         platform: ${{ matrix.arch == 'x86_64' && 'linux/amd64' || 'linux/arm64' }}
