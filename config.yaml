@@ -19,6 +19,7 @@ packages:
   azure-storage-fuse:
   besttrace:
   checkra1n-cli:
+  cpeditor: { aarch64: true }
   curl-http3: { aarch64: true }
   fcitx-sogoupinyin: { ref: aur-74a52e0854ebeb828abbaf529abb00f23066cc28 }
   lemon-lime: { aarch64: true }
