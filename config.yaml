@@ -21,7 +21,7 @@ packages:
   cf-tool: { aarch64: true }
   checkra1n-cli: { aarch64: true }
   cpeditor: { aarch64: true }
-  curl-http3: { aarch64: true }
+  curl-http3:
   fcitx-sogoupinyin: { ref: aur-74a52e0854ebeb828abbaf529abb00f23066cc28 }
   lemon-lime: { aarch64: true }
   ossutil-bin:
