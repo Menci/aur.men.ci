@@ -18,6 +18,7 @@ packages:
   azure-cli: { aarch64: true }
   azure-storage-fuse:
   besttrace:
+  box64: { aarch64: true, x86_64: false }
   cf-tool: { aarch64: true }
   checkra1n-cli: { aarch64: true }
   cpeditor: { aarch64: true }
