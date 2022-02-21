@@ -28,4 +28,5 @@ packages:
   ossutil-bin:
   overture: { aarch64: true }
   powershell-bin:
+  qemu-user-static-bin: { aarch64: true }
   yay-bin: { manjaro: false, aarch64: true }
