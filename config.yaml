@@ -24,6 +24,7 @@ packages:
   cpeditor: { aarch64: true }
   curl-http3:
   fcitx-sogoupinyin: { ref: aur-74a52e0854ebeb828abbaf529abb00f23066cc28 }
+  frp: { aarch64: true }
   lemon-lime: { aarch64: true }
   ossutil-bin:
   overture: { aarch64: true }
