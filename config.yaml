@@ -30,5 +30,5 @@ packages:
   overture: { aarch64: true }
   pacman-auto-update: { aarch64: true }
   powershell-bin:
-  qemu-user-static-bin: { aarch64: true }
+  qemu-user-static: { aarch64: true }
   yay-bin: { manjaro: false, aarch64: true }
