@@ -31,4 +31,3 @@ packages:
   pacman-auto-update: { aarch64: true }
   powershell-bin:
   qemu-user-static: { aarch64: true }
-  yay-bin: { manjaro: false, aarch64: true }
