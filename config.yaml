@@ -23,7 +23,7 @@ packages:
   checkra1n-cli: { aarch64: true }
   cpeditor: { aarch64: true }
   curl-http3:
-  dotnet-sdk-bin: { aarch64: true, x86_64: false }
+  dotnet-core-bin: { aarch64: true, x86_64: false }
   fcitx-sogoupinyin: { ref: aur-74a52e0854ebeb828abbaf529abb00f23066cc28 }
   frp: { aarch64: true }
   lemon-lime: { aarch64: true }
