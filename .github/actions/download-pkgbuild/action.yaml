@@ -28,6 +28,16 @@ runs:
         curl "$PACKAGE_URL" | tar -C "$EXTRACT_DIRECTORY" -xzv
         PKGBUILD_DIRECTORY="$(echo "$EXTRACT_DIRECTORY"/*)"
         echo "::set-output name=pkgbuild-directory::$PKGBUILD_DIRECTORY"
+
+        PKGBUILD_DIRNAME="$(basename "$PKGBUILD_DIRECTORY")"
+        if [[ -e "patches/$PKGBUILD_DIRNAME.patch" ]]; then
+            PATCH_FILE="$(realpath "patches/$PKGBUILD_DIRNAME.patch")"
+            cd "$EXTRACT_DIRECTORY"
+
+            git init
+            git apply "$PATCH_FILE"
+            rm -rf .git
+        fi
       env:
         TARGET_AUR_REF: ${{ inputs.target-aur-ref }}
         EXTRACT_DIRECTORY: ${{ inputs.extract-directory }}
