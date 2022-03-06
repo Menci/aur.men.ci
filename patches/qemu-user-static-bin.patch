@@ -1,0 +1,13 @@
+diff --git a/qemu-user-static-bin/PKGBUILD b/qemu-user-static-bin/PKGBUILD
+index dc38ab3..1ca95fe 100644
+--- a/qemu-user-static-bin/PKGBUILD
++++ b/qemu-user-static-bin/PKGBUILD
+@@ -13,7 +13,7 @@ pkgdesc='A generic and open source machine emulator, statically linked'
+ arch=('x86_64' 'i686' 'aarch64' 'armv7h' 'armv6h')
+ url="http://wiki.qemu.org"
+ license=('GPL2' 'LGPL2.1')
+-depends=('binfmt-qemu-static')
++depends=('binfmt-qemu-static-all-arch')
+ provides=("qemu-user" "${_pkgname}" "qemu-arm-static")
+ conflicts=("qemu-user" "${_pkgname}" "qemu-arm-static")
+ 
