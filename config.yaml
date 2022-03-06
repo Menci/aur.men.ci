@@ -30,6 +30,7 @@ packages:
   ossutil-bin:
   overture: { aarch64: true }
   pacman-auto-update: { aarch64: true }
+  pacman-static: { aarch64: true }
   pmdk: { aarch64: true }
   powershell: { aarch64: true }
   qemu-user-static: { aarch64: true }
