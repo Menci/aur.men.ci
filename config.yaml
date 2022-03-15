@@ -35,3 +35,4 @@ packages:
   pmdk: { aarch64: true }
   powershell: { aarch64: true }
   qemu-user-static-bin: { aarch64: true }
+  uwufetch: { aarch64: true }
