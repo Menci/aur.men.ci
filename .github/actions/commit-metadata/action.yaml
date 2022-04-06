@@ -156,7 +156,7 @@ runs:
 
             echo "Try upload new metadata file"
             UPLOAD_SUCCESS="false"
-            if ! UPLOAD_OUTPUT="$(az storage blob upload --connection-string "$AZURE_BLOB_STORAGE_CONNECTION_STRING" --container-name "$AZURE_BLOB_STORAGE_CONTAINER" --file "$TEMP_METADATA_FILE" --name "$METADATA_FILE_PATH" --content-cache "no-cache" "${UPLOAD_CONDITION[@]}" 2>&1)"; then
+            if ! UPLOAD_OUTPUT="$(az storage blob upload --connection-string "$AZURE_BLOB_STORAGE_CONNECTION_STRING" --container-name "$AZURE_BLOB_STORAGE_CONTAINER" --file "$TEMP_METADATA_FILE" --name "$METADATA_FILE_PATH" --content-cache "no-cache" "${UPLOAD_CONDITION[@]}" --overwrite true 2>&1)"; then
                 if ! echo "$UPLOAD_OUTPUT" | grep 'ConditionNotMet\|BlobAlreadyExists'; then
                     echo "Unknown error when uploading new metadata file: $UPLOAD_OUTPUT"
                     exit 1

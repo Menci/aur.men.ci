@@ -40,7 +40,7 @@ runs:
             PACKAGE_NAMES+=("$PACKAGE_NAME")
             echo "Package name: $PACKAGE_NAME"
 
-            az storage blob upload --connection-string "$AZURE_BLOB_STORAGE_CONNECTION_STRING" --container-name "$AZURE_BLOB_STORAGE_CONTAINER" --file "$PACKAGE_PATH" --name "$TARGET_PATH/$PACKAGE_FILE" --content-cache "$CACHE_CONTROL_PACKAGE_FILE"
+            az storage blob upload --connection-string "$AZURE_BLOB_STORAGE_CONNECTION_STRING" --container-name "$AZURE_BLOB_STORAGE_CONTAINER" --file "$PACKAGE_PATH" --name "$TARGET_PATH/$PACKAGE_FILE" --content-cache "$CACHE_CONTROL_PACKAGE_FILE" --overwrite true
 
             rm -rf "$TEMP_EXTRACT_DIRECTORY"
 
@@ -109,7 +109,7 @@ runs:
 
             echo "Try upload new database file"
             UPLOAD_SUCCESS="false"
-            if ! UPLOAD_OUTPUT="$(az storage blob upload --connection-string "$AZURE_BLOB_STORAGE_CONNECTION_STRING" --container-name "$AZURE_BLOB_STORAGE_CONTAINER" --file "$TEMP_DB_FILE" --name "$TARGET_PATH/$REPO_NAME.db" --content-cache "$CACHE_CONTROL_DATABASE_FILE" "${UPLOAD_CONDITION[@]}" 2>&1)"; then
+            if ! UPLOAD_OUTPUT="$(az storage blob upload --connection-string "$AZURE_BLOB_STORAGE_CONNECTION_STRING" --container-name "$AZURE_BLOB_STORAGE_CONTAINER" --file "$TEMP_DB_FILE" --name "$TARGET_PATH/$REPO_NAME.db" --content-cache "$CACHE_CONTROL_DATABASE_FILE" "${UPLOAD_CONDITION[@]}" --overwrite true 2>&1)"; then
                 if ! echo "$UPLOAD_OUTPUT" | grep 'ConditionNotMet\|BlobAlreadyExists'; then
                     echo "Unknown error when uploading new database file: $UPLOAD_OUTPUT"
                     exit 1
