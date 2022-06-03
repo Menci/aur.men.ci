@@ -1,0 +1,95 @@
+name: Build Package
+description: Build a package with Docker, for AMD64 or ARM64.
+inputs:
+  package-type:
+    description: The package type. Possible values are "pacman" and "deb".
+    required: true
+  docker-image:
+    description: The Docker Image used to build the packages.
+    required: true
+  platform:
+    description: The platform (architecture) to build. Possible values are "linux/amd64" and "linux/arm64".
+    required: false
+    default: linux/amd64
+  pkgbuild-directory:
+    description: The directory containing PKGBUILD and other files required.
+    required: true
+  extra-build-dependencies:
+    description: Extra build dependencies to install before building.
+    required: false
+    default: ''
+  repo-url:
+    description: Your repo's URL. If specfied, the existence of the target package (with target version) will be tested by HEADing the URL <repo-url>/<package-file>.
+    required: false
+    default: ''
+  force-rebuild:
+    description: Don't check if the existence of the target package even if `repo-url` option is specfied.
+    required: false
+    default: 'false'
+  target-directory:
+    description: The target directory (on GitHub Action runner) to put the built package files to.
+    required: true
+  packager:
+    description: The value of "Packager" field of built package.
+    required: true
+  build-log-file:
+    description: The file path to save the build log.
+    required: false
+    default: '/dev/null'
+outputs:
+  skipped:
+    description: Indicate if the build is skipped since the package already exists in the repo.
+    value: ${{ steps.build.outputs.skipped }}
+runs:
+  using: "composite"
+  steps:
+    - id: build
+      shell: bash
+      run: |
+        if [[ "$FORCE_REBUILD" == "true" ]]; then
+            REPO_URL=""
+        fi
+
+        TEMP_TARGET_DIRECTORY="$(mktemp -d -t build-package-XXXXXXXX)"
+
+        (
+            echo "Build start time: $(date)"
+            echo "PKGBUILD directory: $PKGBUILD_DIRECTORY"
+            echo -e '=====================================\n\n'
+        ) > "$BUILD_LOG_FILE"
+
+        echo "::group::Start Docker container" 
+        DOCKER_STATUS="0"
+        docker run --rm \
+                   --platform "$PLATFORM" \
+                   -v "$TEMP_TARGET_DIRECTORY:/target" \
+                   -v "$PKGBUILD_DIRECTORY:/pkgbuild" \
+                   -v "$ACTION_DIRECTORY/build-scripts:/build-scripts" \
+                   -e "PACKAGE_TYPE=$PACKAGE_TYPE" \
+                   -e "REPO_URL=$REPO_URL" \
+                   -e "PACKAGER=$PACKAGER" \
+                   -e "EXTRA_BUILD_DEPENDENCIES=$EXTRA_BUILD_DEPENDENCIES" \
+                   -e "TERM=linux" \
+                   "$DOCKER_IMAGE" \
+                   /build-scripts/entry.sh 2>&1 \
+              | tee -a "$BUILD_LOG_FILE" \
+            || DOCKER_STATUS="$?"
+        sudo chown -R "$(id -u):$(id -g)" "$TEMP_TARGET_DIRECTORY"
+        mkdir -p "$TARGET_DIRECTORY"
+        find "$TEMP_TARGET_DIRECTORY"/ -type f -exec cp "{}" "$TARGET_DIRECTORY"/ \;
+
+        rm -rf "$TEMP_TARGET_DIRECTORY"
+
+        exit $DOCKER_STATUS
+      env:
+        ACTION_DIRECTORY: ${{ github.action_path }}
+        PACKAGE_TYPE: ${{ inputs.package-type }}
+        DOCKER_IMAGE: ${{ inputs.docker-image }}
+        PLATFORM: ${{ inputs.platform }}
+        PKGBUILD_DIRECTORY: ${{ inputs.pkgbuild-directory }}
+        EXTRA_BUILD_DEPENDENCIES: ${{ inputs.extra-build-dependencies }}
+        REPO_URL: ${{ inputs.repo-url }}
+        FORCE_REBUILD: ${{ inputs.force-rebuild }}
+        TARGET_DIRECTORY: ${{ inputs.target-directory }}
+        PACKAGER: ${{ inputs.packager }}
+        BUILD_LOG_FILE: ${{ inputs.build-log-file }}

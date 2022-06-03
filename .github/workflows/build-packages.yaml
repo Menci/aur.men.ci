@@ -67,12 +67,15 @@ jobs:
       id: download-pkgbuild
       uses: ./.github/actions/download-pkgbuild
       with:
-        target-aur-ref: ${{ matrix.target-ref }}
+        package-type: ${{ matrix.os.package-type }}
+        target-name: ${{ matrix.target }}
+        target-ref: ${{ matrix.target-ref }}
         extract-directory: ${{ env.PKGBUILD_EXTRACT_DIRECTORY }}
     - name: Build
       id: build
-      uses: Menci/build-aur-package@main
+      uses: ./.github/actions/build-package
       with:
+        package-type: ${{ matrix.os.package-type }}
         docker-image: ${{ matrix.os.docker-image }}
         platform: ${{ matrix.arch == 'x86_64' && 'linux/amd64' || 'linux/arm64' }}
         pkgbuild-directory: ${{ steps.download-pkgbuild.outputs.pkgbuild-directory }}
@@ -96,6 +99,7 @@ jobs:
       with:
         azure-blob-storage-connection-string: ${{ secrets.AZURE_BLOB_STORAGE_CONNECTION_STRING }}
         azure-blob-storage-container: ${{ env.AZURE_BLOB_STORAGE_CONTAINER }}
+        package-type: ${{ matrix.os.package-type }}
         packages-directory: ${{ env.PACKAGES_DIRECTORY }}
         target-path: ${{ matrix.os.id }}/${{ matrix.arch }}
         repo-name: ${{ env.REPO_NAME }}
@@ -105,8 +109,9 @@ jobs:
       with:
         azure-blob-storage-connection-string: ${{ secrets.AZURE_BLOB_STORAGE_CONNECTION_STRING }}
         azure-blob-storage-container: ${{ env.AZURE_BLOB_STORAGE_CONTAINER }}
+        package-type: ${{ matrix.os.package-type }}
         packages-directory: ${{ env.PACKAGES_DIRECTORY }}
         target-name: ${{ matrix.target }}
-        target-aur-ref: ${{ matrix.target-ref }}
+        target-ref: ${{ matrix.target-ref }}
         build-status: ${{ steps.build.outcome }}
         metadata-file-path: ${{ matrix.os.id }}/${{ matrix.arch }}/metadata.json

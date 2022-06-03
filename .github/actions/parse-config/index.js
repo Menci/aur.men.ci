@@ -9,6 +9,8 @@ const configYamlText = fs.readFileSync(process.argv[2], "utf-8");
  * @prop {boolean} arm
  * @prop {boolean} archlinux
  * @prop {boolean} manjaro
+ * @prop {boolean} debian
+ * @prop {boolean} ubuntu
  */
 
 /**
@@ -16,6 +18,8 @@ const configYamlText = fs.readFileSync(process.argv[2], "utf-8");
  * @prop {{
  *  os: Record<string, { 
  *    name: string;
+ *    versions: string[];
+ *    "package-type": string;
  *    "docker-image": string;
  *  }>;
  *  arch: string[];
@@ -49,26 +53,44 @@ const configOutput = [];
  * @param {string} os
  */
 function pushItem(target, targetRef, arch, os) {
-  configOutput.push({
-    target,
-    "target-ref": targetRef,
-    arch,
-    os: { ...config.definitions.os[os], id: os }
-  });
+  osDefinition = config.definitions.os[os];
+  for (const version of osDefinition.versions || [""]) {
+    configOutput.push({
+      target,
+      "target-ref": targetRef,
+      arch,
+      os: {
+        ...osDefinition,
+        name: osDefinition.name + (version ? " " + version : ""),
+        "docker-image": osDefinition["docker-image"] + version,
+        id: os + version,
+        versions: undefined,
+        baseName: osDefinition.name,
+        version
+      }
+    });
+  }
 }
 
-Object.entries(config.packages).forEach(([target, options]) => {
-  const mergedOptions = { ...config.baseOptions, ...options };
+const packageTypes = Array.from(new Set(Object.values(config.definitions.os).map(os => os["package-type"])));
+packageTypes.map(packageType => 
+  Object.entries(config[`packages-${packageType}`]).forEach(([target, options]) => {
+    const mergedOptions = { ...config.baseOptions, ...options };
 
-  const osList = Object.keys(config.definitions.os);
-  const archList = config.definitions.arch;
+    const osList = Object.keys(config.definitions.os);
+    const archList = config.definitions.arch;
 
-  for (const os of osList) if (mergedOptions[os]) {
-    for (const arch of archList) if (mergedOptions[arch]) {
-      pushItem(target, mergedOptions.ref || target, arch, os);
+    for (const os of osList) {
+      if (mergedOptions[os] && config.definitions.os[os]["package-type"] === packageType) {
+        for (const arch of archList) {
+          if (mergedOptions[arch]) {
+            pushItem(target, mergedOptions.ref || target, arch, os);
+          }
+        }
+      }
     }
-  }
-});
+  })
+);
 
 configOutput.sort((a, b) => {
   if (a.arch !== b.arch) return a.arch < b.arch ? -1 : 1;

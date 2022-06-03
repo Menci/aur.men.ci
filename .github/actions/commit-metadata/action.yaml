@@ -7,14 +7,17 @@ inputs:
   azure-blob-storage-container:
     description: The container of Azure Blob Storage.
     required: true
+  package-type:
+    description: The package type. Possible values are "pacman" and "deb".
+    required: true
   packages-directory:
     description: The directory of package files to commit.
     required: true
   target-name:
-    description: The AUR target name we attempted to build.
+    description: The target name we attempted to build.
     required: true
-  target-aur-ref:
-    description: The AUR target git ref we attempted to build.
+  target-ref:
+    description: The target git ref we attempted to build.
     required: true
   build-status:
     description: The status (success / failure) of the build attempt.
@@ -50,12 +53,21 @@ runs:
                 PACKAGE_FILE="$(basename "$PACKAGE_PATH")"
                 echo "::group::Process package file: $PACKAGE_FILE"
 
-                TEMP_EXTRACT_DIRECTORY="$(mktemp -d -t extract-package-XXXXXXXX)"
-                tar -C "$TEMP_EXTRACT_DIRECTORY" -xf "$PACKAGE_PATH" .PKGINFO
+                if [[ "$PACKAGE_TYPE" == "pacman" ]]; then
+                    TEMP_EXTRACT_DIRECTORY="$(mktemp -d -t extract-package-XXXXXXXX)"
+                    tar -C "$TEMP_EXTRACT_DIRECTORY" -xf "$PACKAGE_PATH" .PKGINFO
 
-                PACKAGE_NAME="$(sed -n 's/^pkgname\s*=\s*\(.\+\)$/\1/p' "$TEMP_EXTRACT_DIRECTORY/.PKGINFO")"
-                PACKAGE_VERSION="$(sed -n 's/^pkgver\s*=\s*\(.\+\)$/\1/p' "$TEMP_EXTRACT_DIRECTORY/.PKGINFO")"
-                PACKAGE_DESCRIPTION="$(sed -n 's/^pkgdesc\s*=\s*\(.\+\)$/\1/p' "$TEMP_EXTRACT_DIRECTORY/.PKGINFO")"
+                    PACKAGE_NAME="$(sed -n 's/^pkgname\s*=\s*\(.\+\)$/\1/p' "$TEMP_EXTRACT_DIRECTORY/.PKGINFO")"
+                    PACKAGE_VERSION="$(sed -n 's/^pkgver\s*=\s*\(.\+\)$/\1/p' "$TEMP_EXTRACT_DIRECTORY/.PKGINFO")"
+                    PACKAGE_DESCRIPTION="$(sed -n 's/^pkgdesc\s*=\s*\(.\+\)$/\1/p' "$TEMP_EXTRACT_DIRECTORY/.PKGINFO")"
+
+                    rm -rf "$TEMP_EXTRACT_DIRECTORY"
+                elif [[ "$PACKAGE_TYPE" == "deb" ]]; then
+                    PACKAGE_NAME="$(dpkg-deb -W --showformat '${binary:Package}' "$PACKAGE_PATH" | sed -E 's/:[^:]+$//')"
+                    PACKAGE_VERSION="$(dpkg-deb -W --showformat '${Version}' "$PACKAGE_PATH")"
+                    PACKAGE_DESCRIPTION="$(dpkg-deb -W --showformat '${binary:Summary}' "$PACKAGE_PATH")"
+                fi
+
                 echo "Package name: $PACKAGE_NAME"
                 echo "Package version: $PACKAGE_VERSION"
                 echo "Package description: $PACKAGE_DESCRIPTION"
@@ -64,7 +76,7 @@ runs:
                 set_package_info status               string "success"
                 set_package_info description          string "$PACKAGE_DESCRIPTION"
                 set_package_info target               string "$TARGET_NAME"
-                set_package_info targetRef            string "$TARGET_AUR_REF"
+                set_package_info targetRef            string "$TARGET_REF"
                 set_package_info attempt.version      string "$PACKAGE_VERSION"
                 set_package_info attempt.date         number "$CURRENT_TIME"
                 set_package_info available.version    string "$PACKAGE_VERSION"
@@ -72,23 +84,33 @@ runs:
                 set_package_info available.date       number "$CURRENT_TIME"
                 set_package_info available.size       number "$(stat --printf='%s' "$PACKAGE_PATH")"
 
-                rm -rf "$TEMP_EXTRACT_DIRECTORY"
-
                 add_package_to_temp_metadata "$PACKAGE_NAME"
 
                 echo "::endgroup::"
             done
         else
-            echo "Fetching packages info from AUR since build failed."
+            echo "Fetching packages info from AUR/MPR since build failed."
 
             TEMP_PKGBUILD_DIRECTORY="$(mktemp -d -t extract-pkgbuild-XXXXXXXX)"
 
-            echo "::group::Fetch PKGBUILD from AUR"
+            echo "::group::Fetch PKGBUILD from AUR/MPR"
 
-            PACKAGE_URL="https://aur.archlinux.org/cgit/aur.git/snapshot/$TARGET_AUR_REF.tar.gz"
-            echo "Downloading AUR repo: $PACKAGE_URL"
-            curl "$PACKAGE_URL" | tar -C "$TEMP_PKGBUILD_DIRECTORY" -xzvf -
-            PKGBUILD_FILE="$(echo "$TEMP_PKGBUILD_DIRECTORY"/*/PKGBUILD)"
+            if [[ "$PACKAGE_TYPE" == "pacman" ]]; then
+                PACKAGE_URL="https://aur.archlinux.org/cgit/aur.git/snapshot/$TARGET_REF.tar.gz"
+                echo "Downloading AUR repo: $PACKAGE_URL"
+                curl "$PACKAGE_URL" | tar -C "$TEMP_PKGBUILD_DIRECTORY" -xzvf -
+                PKGBUILD_FILE="$(echo "$TEMP_PKGBUILD_DIRECTORY"/*/PKGBUILD)"
+            elif [[ "$PACKAGE_TYPE" == "deb" ]]; then
+                PACKAGE_REPO="https://mpr.makedeb.org/$TARGET_NAME.git"
+                echo "Cloning MPR repo: $PACKAGE_REPO"
+                git clone "$PACKAGE_REPO" "$TEMP_PKGBUILD_DIRECTORY"
+                cd "$TEMP_PKGBUILD_DIRECTORY"
+                if [[ "$TARGET_REF" != "$TARGET_NAME" ]]; then
+                    git fetch "$TARGET_REF" && git checkout "$TARGET_REF"
+                fi
+                PKGBUILD_FILE="$(pwd)/PKGBUILD"
+            fi
+
             echo "PKGBUILD file: $PKGBUILD_FILE"
 
             echo "::endgroup::"
@@ -109,7 +131,7 @@ runs:
                 set_package_info status               string "failure"
                 set_package_info description          string "$PACKAGE_DESCRIPTION"
                 set_package_info target               string "$TARGET_NAME"
-                set_package_info targetRef            string "$TARGET_AUR_REF"
+                set_package_info targetRef            string "$TARGET_REF"
                 set_package_info attempt.version      string "$PACKAGE_VERSION"
                 set_package_info attempt.date         number "$CURRENT_TIME"
 
@@ -179,8 +201,9 @@ runs:
       env:
         AZURE_BLOB_STORAGE_CONNECTION_STRING: ${{ inputs.azure-blob-storage-connection-string }}
         AZURE_BLOB_STORAGE_CONTAINER: ${{ inputs.azure-blob-storage-container }}
+        PACKAGE_TYPE: ${{ inputs.package-type }}
         PACKAGES_DIRECTORY: ${{ inputs.packages-directory }}
         TARGET_NAME: ${{ inputs.target-name }}
-        TARGET_AUR_REF: ${{ inputs.target-aur-ref }}
+        TARGET_REF: ${{ inputs.target-ref }}
         BUILD_STATUS: ${{ inputs.build-status }}
         METADATA_FILE_PATH: ${{ inputs.metadata-file-path }}

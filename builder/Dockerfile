@@ -1,5 +1,10 @@
 ARG FROM
 FROM $FROM
 
+ARG PACKAGE_TYPE
+ENV PACKAGE_TYPE $PACKAGE_TYPE
+
+ENV TZ=Etc/UTC
+
 COPY initialization.sh /
 RUN /initialization.sh

@@ -1,3 +1,3 @@
-# Menci's Prebuilt AUR Repository
+# Menci's Repository
 
 See the repo's [index page](https://aur.men.ci/).

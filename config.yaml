@@ -2,10 +2,22 @@ definitions:
   os:
     archlinux:
       name: Arch Linux
-      docker-image: menci/aur-builder:archlinux
+      docker-image: menci/package-builder:archlinux
+      package-type: pacman
     manjaro:
       name: Manjaro
-      docker-image: menci/aur-builder:manjaro
+      docker-image: menci/package-builder:manjaro
+      package-type: pacman
+    ubuntu:
+      name: Ubuntu
+      docker-image: menci/package-builder:ubuntu-
+      versions: ["22.04", "20.04"]
+      package-type: deb
+    debian:
+      name: Debian
+      docker-image: menci/package-builder:debian-
+      versions: ["11"]
+      package-type: deb
   arch:
     - x86_64
     - aarch64
@@ -14,29 +26,37 @@ baseOptions:
   aarch64: false
   archlinux: true
   manjaro: true
-packages:
+  ubuntu: true
+  debian: true
+packages-pacman:
   azure-cli: { aarch64: true }
   azure-storage-fuse: { aarch64: true }
   besttrace:
   binfmt-qemu-static-all-arch: { aarch64: true }
   box64: { aarch64: true, x86_64: false }
-  cf-tool: { aarch64: true }
   checkra1n-cli: { aarch64: true }
-  cpeditor: { aarch64: true }
-  curl-http3:
   curl-http3-msquic: { aarch64: true }
   dotnet-core-bin: { aarch64: true, x86_64: false }
-  fcitx-sogoupinyin: { ref: aur-74a52e0854ebeb828abbaf529abb00f23066cc28 }
+  fcitx-sogoupinyin: { ref: 74a52e0854ebeb828abbaf529abb00f23066cc28 }
   frp: { aarch64: true }
   hyfetch: { aarch64: true }
   iptables-fullconenat: { aarch64: true }
   lemon-lime: { aarch64: true }
+  magpie: { aarch64: true, manjaro: false }
   ossutil-bin:
   overture: { aarch64: true }
   pacman-auto-update: { aarch64: true }
   pacman-static: { aarch64: true }
-  pmdk: { aarch64: true }
   powershell: { aarch64: true }
   qemu-user-static-bin: { aarch64: true }
   uwufetch: { aarch64: true }
   xray: { aarch64: true, x86_64: false }
+packages-deb:
+  cling: {}
+  ddns-go-bin: { aarch64: true }
+  hyfetch: { aarch64: true }
+  magpie: { aarch64: true }
+  netfilter-fullconenat-dkms-git: { aarch64: true }
+  overture: { aarch64: true }
+  una-bin: { aarch64: true }
+  iptables-fullconenat: { aarch64: true }

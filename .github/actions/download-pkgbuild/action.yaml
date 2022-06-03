@@ -1,8 +1,14 @@
-name: Download PKGBUILD from AUR
-description: Download PKGBUILD and other required files for a target from AUR
+name: Download PKGBUILD
+description: Download PKGBUILD and other required files for a target from AUR/MPR
 inputs:
-  target-aur-ref:
-    description: The AUR git ref to download.
+  package-type:
+    description: The package type. Possible values are "pacman" and "deb".
+    required: true
+  target-name:
+    description: The AUR/MPR target name to download.
+    required: true
+  target-ref:
+    description: The AUR/MPR target ref to download.
     required: true
   extract-directory:
     description: The directory to extract the downloaded archive to. Must be non-exist.
@@ -23,21 +29,34 @@ runs:
         fi
 
         mkdir -p "$EXTRACT_DIRECTORY"
-        PACKAGE_URL="https://aur.archlinux.org/cgit/aur.git/snapshot/$TARGET_AUR_REF.tar.gz"
-        echo "Downloading AUR repo: $PACKAGE_URL"
-        curl "$PACKAGE_URL" | tar -C "$EXTRACT_DIRECTORY" -xzv
-        PKGBUILD_DIRECTORY="$(echo "$EXTRACT_DIRECTORY"/*)"
+        if [[ "$PACKAGE_TYPE" == "pacman" ]]; then
+            PACKAGE_REPO="https://aur.archlinux.org/$TARGET_NAME.git"
+        elif [[ "$PACKAGE_TYPE" == "deb" ]]; then
+            PACKAGE_REPO="https://mpr.makedeb.org/$TARGET_NAME.git"
+        fi
+
+        echo "Cloning MPR repo: $PACKAGE_REPO"
+        git clone "$PACKAGE_REPO" "$EXTRACT_DIRECTORY/$TARGET_NAME"
+        pushd "$EXTRACT_DIRECTORY/$TARGET_NAME"
+        if [[ "$TARGET_REF" != "$TARGET_NAME" ]]; then
+            git fetch origin "$TARGET_REF" && git checkout "$TARGET_REF"
+        fi
+        ls -lah
+        popd
+
+        PKGBUILD_DIRECTORY="$EXTRACT_DIRECTORY/$TARGET_NAME"
         echo "::set-output name=pkgbuild-directory::$PKGBUILD_DIRECTORY"
 
         PKGBUILD_DIRNAME="$(basename "$PKGBUILD_DIRECTORY")"
-        if [[ -e "patches/$PKGBUILD_DIRNAME.patch" ]]; then
-            PATCH_FILE="$(realpath "patches/$PKGBUILD_DIRNAME.patch")"
-            cd "$EXTRACT_DIRECTORY"
+        if [[ -e "patches/$PACKAGE_TYPE/$PKGBUILD_DIRNAME.patch" ]]; then
+            PATCH_FILE="$(realpath "patches/$PACKAGE_TYPE/$PKGBUILD_DIRNAME.patch")"
+            cd "$PKGBUILD_DIRECTORY"
 
-            git init
             git apply "$PATCH_FILE"
             rm -rf .git
         fi
       env:
-        TARGET_AUR_REF: ${{ inputs.target-aur-ref }}
+        PACKAGE_TYPE: ${{ inputs.package-type }}
+        TARGET_NAME: ${{ inputs.target-name }}
+        TARGET_REF: ${{ inputs.target-ref }}
         EXTRACT_DIRECTORY: ${{ inputs.extract-directory }}
