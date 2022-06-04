@@ -13,6 +13,12 @@ export const TargetListItem: Preact.FunctionalComponent<TargetListItemProps> = p
   const [expanded, setExpanded] = useState(false);
   const target = props.target;
 
+  const osName = Object.fromEntries(
+    Object.keys(osList).flatMap(os =>
+      (osList[os].versions || [""]).map(version => [os + version, osList[os].name + " " + version])
+    )
+  );
+
   return (
     <>
       <tr
@@ -53,7 +59,7 @@ export const TargetListItem: Preact.FunctionalComponent<TargetListItemProps> = p
                   <Preact.Fragment key={`${buildTarget.os}/${buildTarget.arch}`}>
                     {buildTarget.packages.map(p => (
                       <tr key={p.name} data-error={p.status === "failure"}>
-                        <td class="sub-table-column-os">{osList[buildTarget.os]}</td>
+                        <td class="sub-table-column-os">{osName[buildTarget.os]}</td>
                         <td class="sub-table-column-arch">{buildTarget.arch}</td>
                         <td class="sub-table-column-name">{p.name}</td>
                         <td class="sub-table-column-version">{p.available?.version}</td>

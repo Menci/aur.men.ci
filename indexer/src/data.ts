@@ -43,9 +43,26 @@ export interface MetadataItem {
   };
 }
 
-export const osList = {
-  archlinux: "Arch Linux",
-  manjaro: "Manjaro"
+export interface OS {
+  name: string;
+  versions?: string[];
+}
+
+export const osList: Record<string, OS> = {
+  archlinux: {
+    name: "Arch Linux"
+  },
+  manjaro: {
+    name: "Manjaro"
+  },
+  ubuntu: {
+    name: "Ubuntu",
+    versions: ["20.04", "22.04"]
+  },
+  debian: {
+    name: "Debian",
+    versions: ["11"]
+  }
 };
 const archList = ["x86_64", "aarch64"];
 
@@ -54,31 +71,35 @@ export async function fetchTargetList(apiRoot: string) {
     try {
       return (await (await fetch(url)).json()) as T;
     } catch (e) {
-      return {} as T;
+      return null;
     }
   }
 
   const [config, packagesMetadata] = await Promise.all([
     fetchJson<RepoConfigItem[]>(`${apiRoot}/config.json`),
     Promise.all(
-      Object.keys(osList).map(
-        async os =>
-          [
-            os,
-            Object.fromEntries(
-              await Promise.all(
-                archList.map(
-                  async arch =>
-                    [
-                      arch,
-                      await fetchJson<Record<string, MetadataItem>>(`${apiRoot}/${os}/${arch}/metadata.json`)
-                    ] as const
+      Object.keys(osList).flatMap(os =>
+        (osList[os].versions || [""]).map(
+          async version =>
+            [
+              os + version,
+              Object.fromEntries(
+                await Promise.all(
+                  archList.map(
+                    async arch =>
+                      [
+                        arch,
+                        await fetchJson<Record<string, MetadataItem>>(
+                          `${apiRoot}/${os}${version}/${arch}/metadata.json`
+                        )
+                      ] as const
+                  )
                 )
               )
-            )
-          ] as const
+            ] as const
+        )
       )
-    ).then(array => Object.fromEntries(array))
+    ).then(array => Object.fromEntries(array.filter(([, metadata]) => metadata)))
   ]);
 
   const result: Record<string, Target> = {};
