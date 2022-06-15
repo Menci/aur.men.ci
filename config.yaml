@@ -55,8 +55,10 @@ packages-deb:
   cling: {}
   ddns-go-bin: { aarch64: true }
   hyfetch: { aarch64: true }
+  iptables-fullconenat: { aarch64: true }
   magpie: { aarch64: true }
   netfilter-fullconenat-dkms-git: { aarch64: true }
   overture: { aarch64: true }
+  rathole: { aarch64: true }
+  traefik: { aarch64: true }
   una-bin: { aarch64: true }
-  iptables-fullconenat: { aarch64: true }
