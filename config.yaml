@@ -53,6 +53,7 @@ packages-pacman:
   xray: { aarch64: true, x86_64: false }
 packages-deb:
   cling: {}
+  frp: { aarch64: true }
   ddns-go-bin: { aarch64: true }
   hyfetch: { aarch64: true }
   iptables-fullconenat: { aarch64: true }
