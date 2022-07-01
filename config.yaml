@@ -30,7 +30,6 @@ baseOptions:
   debian: true
 packages-pacman:
   azure-cli: { aarch64: true }
-  azure-storage-fuse: { aarch64: true }
   besttrace:
   binfmt-qemu-static-all-arch: { aarch64: true }
   box64: { aarch64: true, x86_64: false }
