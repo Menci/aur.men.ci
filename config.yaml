@@ -48,6 +48,7 @@ packages-pacman:
   pacman-static: { aarch64: true }
   powershell: { aarch64: true }
   qemu-user-static-bin: { aarch64: true }
+  shadowsocks-rust-bin: { aarch64: true }
   uwufetch: { aarch64: true }
   xray: { aarch64: true, x86_64: false }
 packages-deb:
@@ -60,5 +61,6 @@ packages-deb:
   netfilter-fullconenat-dkms-git: { aarch64: true }
   overture: { aarch64: true }
   rathole: { aarch64: true }
+  shadowsocks-rust-bin: { aarch64: true }
   traefik: { aarch64: true }
   una-bin: { aarch64: true }
