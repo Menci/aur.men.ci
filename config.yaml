@@ -2,20 +2,20 @@ definitions:
   os:
     archlinux:
       name: Arch Linux
-      docker-image: menci/package-builder:archlinux
+      docker-image: ghcr.io/menci/package-builder:archlinux
       package-type: pacman
     manjaro:
       name: Manjaro
-      docker-image: menci/package-builder:manjaro
+      docker-image: ghcr.io/menci/package-builder:manjaro
       package-type: pacman
     ubuntu:
       name: Ubuntu
-      docker-image: menci/package-builder:ubuntu-
+      docker-image: ghcr.io/menci/package-builder:ubuntu-
       versions: ["22.04", "20.04"]
       package-type: deb
     debian:
       name: Debian
-      docker-image: menci/package-builder:debian-
+      docker-image: ghcr.io/menci/package-builder:debian-
       versions: ["11"]
       package-type: deb
   arch:
