@@ -42,6 +42,9 @@ packages-pacman:
   iptables-fullconenat: { aarch64: true }
   lemon-lime: { aarch64: true }
   magpie: { aarch64: true, manjaro: false }
+  obs-service-extract_file: { aarch64: true }
+  obs-service-tar_scm: { aarch64: true }
+  osc-git: { aarch64: true }
   ossutil-bin:
   overture: { aarch64: true }
   pacman-auto-update: { aarch64: true }
