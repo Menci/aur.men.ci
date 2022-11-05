@@ -143,7 +143,7 @@ fi
 echo "::endgroup::"
 
 if [[ "$PACKAGE_ALL_BUILT" == "true" ]]; then
-	echo "::set-output name=skipped::$PACKAGE_ALL_BUILT"
+	echo "skipped=$PACKAGE_ALL_BUILT" >> $GITHUB_OUTPUT
 	exit 0
 fi
 
@@ -162,7 +162,7 @@ $MAKEPKG_CMD $MAKEPKG_FLAGS
 echo "::endgroup::"
 
 # Set output
-echo "::set-output name=skipped::$PACKAGE_ALL_BUILT"
+echo "skipped=$PACKAGE_ALL_BUILT" >> $GITHUB_OUTPUT
 
 # Copy packages to target directory
 sudo cp $PACKAGE_FILES /target/

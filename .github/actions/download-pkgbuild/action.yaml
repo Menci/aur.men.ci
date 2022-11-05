@@ -45,7 +45,7 @@ runs:
         popd
 
         PKGBUILD_DIRECTORY="$EXTRACT_DIRECTORY/$TARGET_NAME"
-        echo "::set-output name=pkgbuild-directory::$PKGBUILD_DIRECTORY"
+        echo "pkgbuild-directory=$PKGBUILD_DIRECTORY" >> $GITHUB_OUTPUT
 
         PKGBUILD_DIRNAME="$(basename "$PKGBUILD_DIRECTORY")"
         if [[ -e "patches/$PACKAGE_TYPE/$PKGBUILD_DIRNAME.patch" ]]; then

@@ -51,6 +51,9 @@ runs:
         fi
 
         TEMP_TARGET_DIRECTORY="$(mktemp -d -t build-package-XXXXXXXX)"
+        TEMP_GITHUB_OUTPUT="$(mktemp -t github-output-XXXXXXXX)"
+
+        chmod 777 "$TEMP_GITHUB_OUTPUT"
 
         (
             echo "Build start time: $(date)"
@@ -65,6 +68,8 @@ runs:
                    -v "$TEMP_TARGET_DIRECTORY:/target" \
                    -v "$PKGBUILD_DIRECTORY:/pkgbuild" \
                    -v "$ACTION_DIRECTORY/build-scripts:/build-scripts" \
+                   -v "$TEMP_GITHUB_OUTPUT:/github-output" \
+                   -e "GITHUB_OUTPUT=/github-output" \
                    -e "PACKAGE_TYPE=$PACKAGE_TYPE" \
                    -e "REPO_URL=$REPO_URL" \
                    -e "PACKAGER=$PACKAGER" \
@@ -78,7 +83,8 @@ runs:
         mkdir -p "$TARGET_DIRECTORY"
         find "$TEMP_TARGET_DIRECTORY"/ -type f -exec cp "{}" "$TARGET_DIRECTORY"/ \;
 
-        rm -rf "$TEMP_TARGET_DIRECTORY"
+        cat "$TEMP_GITHUB_OUTPUT" >> "$GITHUB_OUTPUT"
+        rm -rf "$TEMP_GITHUB_OUTPUT" "$TEMP_TARGET_DIRECTORY"
 
         exit $DOCKER_STATUS
       env:

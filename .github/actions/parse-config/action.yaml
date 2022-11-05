@@ -16,7 +16,7 @@ runs:
       run: |
         yarn --cwd "$ACTION_PATH" --frozen-lockfile
         CONFIG_OUTPUT="$(node "$ACTION_PATH"/index.js "$CONFIG_FILE")"
-        echo "::set-output name=config::$CONFIG_OUTPUT"
+        echo "config=$CONFIG_OUTPUT" >> $GITHUB_OUTPUT
       env:
         ACTION_PATH: ${{ github.action_path }}
         CONFIG_FILE: ${{ inputs.config-file }}
