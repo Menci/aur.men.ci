@@ -63,6 +63,7 @@ packages-deb:
   magpie: { aarch64: true }
   netfilter-fullconenat-dkms-git: { aarch64: true }
   overture: { aarch64: true }
+  proxmox-no-popup: { ubuntu: false }
   rathole: { aarch64: true }
   shadowsocks-rust-bin: { aarch64: true }
   traefik: { aarch64: true }
