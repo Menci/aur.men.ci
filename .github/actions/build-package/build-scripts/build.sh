@@ -90,7 +90,7 @@ function resolve_dynamic_pkgver() {
 	$MAKEPKG_CMD $MAKEPKG_FLAGS 1>&2
 
 	# Resolve dynamic version
-	echo "$(source PKGBUILD >/dev/null && srcdir="$(pwd)/src" && pkgver)"
+	echo "$(source PKGBUILD >/dev/null && srcdir="$(pwd)/src" && cd "$srcdir" && pkgver)"
 
 	popd >/dev/null
 	rm -rf "$TEMP_RESOLVE_PKGVER_DIRECTORY"
