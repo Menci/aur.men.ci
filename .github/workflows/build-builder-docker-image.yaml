@@ -27,6 +27,9 @@ jobs:
           - name: debian-11
             from: debian:11
             package-type: deb
+          - name: debian-12
+            from: debian:12
+            package-type: deb
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
